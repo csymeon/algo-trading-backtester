@@ -42,6 +42,50 @@ def main():
             execution_handler.execute_order("SELL", "SPY", 10, price)
             portfolio.sell("SPY", 10, price)
 
+    # Track portfolio value over time
+    portfolio_values = []
+
+    for date, row in data_with_signals.iterrows():
+        signal = row['signal']
+        price = row['Close']
+
+        if signal == 1:
+            execution_handler.execute_order("BUY", "SPY", 10, price)
+            portfolio.buy("SPY", 10, price)
+
+        elif signal == -1:
+            execution_handler.execute_order("SELL", "SPY", 10, price)
+            portfolio.sell("SPY", 10, price)
+
+        # Track value each day
+        value = portfolio.value({"SPY": price})
+        portfolio_values.append((date, value))
+
+    # Convert to DataFrame
+    portfolio_df = pd.DataFrame(portfolio_values, columns=["Date", "Value"])
+    portfolio_df.set_index("Date", inplace=True)
+
+    # Performance analysis
+    returns = calculate_returns(portfolio_df["Value"])
+    sharpe = calculate_sharpe_ratio(returns)
+    drawdowns, max_dd = calculate_drawdowns(portfolio_df["Value"])
+
+    print(f"Sharpe Ratio: {sharpe:.2f}")
+    print(f"Max Drawdown: {max_dd:.2%}")
+
+    # 1. Convert trade list to DataFrame
+    trade_dicts = [t.__dict__ for t in execution_handler.trades]
+    trade_df = pd.DataFrame(trade_dicts)
+    trade_df.set_index('timestamp', inplace=True)
+
+    # 2. Save to CSV
+    trade_df.to_csv('reports/trade_log.csv')
+
+    print("Trade log saved to reports/trade_log.csv")
+
+    # Plot results
+    plot_equity_curve(portfolio_df["Value"], drawdowns)
+
     final_value = portfolio.value({"SPY": data_with_signals.iloc[-1]['Close']})
     print(f"Final portfolio value: ${final_value:,.2f}")
 
