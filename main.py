@@ -29,37 +29,28 @@ def main():
     portfolio = Portfolio(initial_capital=100000)
     execution_handler = ExecutionHandler()
 
-    # Basic trading loop (placeholder for full event-driven system)
-    for date, row in data_with_signals.iterrows():
-        signal = row['signal']
-        price = row['Close']
-
-        if signal == 1:
-            execution_handler.execute_order("BUY", "SPY", 10, price)
-            portfolio.buy("SPY", 10, price)
-
-        elif signal == -1:
-            execution_handler.execute_order("SELL", "SPY", 10, price)
-            portfolio.sell("SPY", 10, price)
-
     # Track portfolio value over time
+    prev_signal = 0
     portfolio_values = []
 
     for date, row in data_with_signals.iterrows():
-        signal = row['signal']
-        price = row['Close']
+        signal = row['signal'].item()
+        price  = row['Close'].item()
 
-        if signal == 1:
+        # BUY only when we go from non-1 → 1
+        if signal == 1 and prev_signal != 1:
             execution_handler.execute_order("BUY", "SPY", 10, price)
-            portfolio.buy("SPY", 10, price)
+            portfolio.buy("SPY", 10, price, commission=execution_handler.commission)
 
-        elif signal == -1:
+        # SELL only when we go from non-(-1) → -1
+        elif signal == -1 and prev_signal != -1:
             execution_handler.execute_order("SELL", "SPY", 10, price)
-            portfolio.sell("SPY", 10, price)
+            portfolio.sell("SPY", 10, price, commission=execution_handler.commission)
 
-        # Track value each day
-        value = portfolio.value({"SPY": price})
-        portfolio_values.append((date, value))
+        prev_signal = signal
+
+        # track portfolio value each day
+        portfolio_values.append((date, portfolio.value({"SPY": price})))
 
     # Convert to DataFrame
     portfolio_df = pd.DataFrame(portfolio_values, columns=["Date", "Value"])
@@ -86,7 +77,13 @@ def main():
     # Plot results
     plot_equity_curve(portfolio_df["Value"], drawdowns)
 
-    final_value = portfolio.value({"SPY": data_with_signals.iloc[-1]['Close']})
+    # Get the last closing price as a Python float
+    last_price = data_with_signals["Close"].iloc[-1].item()
+
+    # Compute portfolio value on that last price
+    final_value = portfolio.value({"SPY": last_price})
+
+    # Now final_value is a numeric (float) and the formatter will work
     print(f"Final portfolio value: ${final_value:,.2f}")
 
 if __name__ == "__main__":
