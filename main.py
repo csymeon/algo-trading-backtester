@@ -6,6 +6,14 @@ from strategies.strategy_template import MovingAverageCrossoverStrategy
 from engine.portfolio import Portfolio
 from engine.execution_handler import ExecutionHandler
 
+import pandas as pd
+from utils.performance import (
+    calculate_returns,
+    calculate_sharpe_ratio,
+    calculate_drawdowns,
+    plot_equity_curve
+)
+
 def main():
     print("Starting Algorithmic Trading Backtester 🚀")
 
