@@ -1,90 +1,98 @@
 # main.py
-# Entry point for running the backtest
-
-from engine.data_handler import DataHandler
-from strategies.strategy_template import MovingAverageCrossoverStrategy
-from engine.portfolio import Portfolio
-from engine.execution_handler import ExecutionHandler
 
 import pandas as pd
+
+# Core components
+from engine.multi_data_handler import MultiDataHandler
+from engine.execution_handler import ExecutionHandler
+from engine.portfolio import Portfolio
+
+# Strategies
+from strategies.momentum_strategy import MomentumStrategy
+from strategies.pairs_strategy import PairsTradingStrategy
+
+# Performance & risk
 from utils.performance import (
-    calculate_returns,
-    calculate_sharpe_ratio,
-    calculate_drawdowns,
-    plot_equity_curve
+    calculate_returns, calculate_sharpe_ratio,
+    calculate_drawdowns, plot_equity_curve
 )
+from utils.risk import historical_var, expected_shortfall
 
 def main():
-    print("Starting Algorithmic Trading Backtester 🚀")
+    # 1) Parameters
+    symbols    = ["AAPL","MSFT","GOOG","AMZN"]          # for your momentum example
+    start_date = "2020-01-01"
+    end_date   = "2023-01-01"
+    initial_cap = 100_000
 
-    # Load data
-    data_handler = DataHandler(symbol="SPY", start_date="2020-01-01", end_date="2023-01-01")
-    data = data_handler.load_data()
+    # 2) Load multi‐asset data
+    data_handler = MultiDataHandler(symbols, start_date, end_date)
+    price_data   = data_handler.load_data()            # dict of DataFrames
 
-    # Initialize strategy
-    strategy = MovingAverageCrossoverStrategy(short_window=50, long_window=200)
-    data_with_signals = strategy.generate_signals(data)
+    # 3) Choose & generate signals
+    strat = MomentumStrategy(lookback=90, top_k=2, bottom_k=2)
+    signals = strat.generate_signals(price_data)
+    # signals is a DataFrame indexed by date, columns=symbols, values in {+1,0,-1}
 
-    # Initialize portfolio and execution handler
-    portfolio = Portfolio(initial_capital=100000)
-    execution_handler = ExecutionHandler()
+    # 4) Setup backtest engine
+    exec_h = ExecutionHandler(commission_per_trade=1.0, slippage_pct=0.0005)
+    port   = Portfolio(initial_capital=initial_cap)
 
-    # Track portfolio value over time
-    prev_signal = 0
-    portfolio_values = []
+    # 5) Run the backtest
+    # track daily total portfolio value
+    port_values = []
 
-    for date, row in data_with_signals.iterrows():
-        signal = row['signal'].item()
-        price  = row['Close'].item()
+    # Remember previous signal per symbol to trade only on changes
+    prev_sigs = {sym: 0 for sym in symbols}
 
-        # BUY only when we go from non-1 → 1
-        if signal == 1 and prev_signal != 1:
-            execution_handler.execute_order("BUY", "SPY", 10, price)
-            portfolio.buy("SPY", 10, price, commission=execution_handler.commission)
+    for date in signals.index:
+        today_prices = {sym: price_data[sym].loc[date, "Close"] for sym in symbols}
+        today_sigs   = signals.loc[date]
 
-        # SELL only when we go from non-(-1) → -1
-        elif signal == -1 and prev_signal != -1:
-            execution_handler.execute_order("SELL", "SPY", 10, price)
-            portfolio.sell("SPY", 10, price, commission=execution_handler.commission)
+        # loop each asset
+        for sym in symbols:
+            sig  = int(today_sigs[sym])
+            prev = prev_sigs[sym]
+            price = today_prices[sym]
 
-        prev_signal = signal
+            # BUY signal only on crossover up
+            if sig == 1 and prev != 1:
+                exec_h.execute_order("BUY", sym, 10, price)
+                port.buy(sym, 10, price, commission=exec_h.commission)
 
-        # track portfolio value each day
-        portfolio_values.append((date, portfolio.value({"SPY": price})))
+            # SELL signal only on crossover down
+            elif sig == -1 and prev != -1:
+                exec_h.execute_order("SELL", sym, 10, price)
+                port.sell(sym, 10, price, commission=exec_h.commission)
 
-    # Convert to DataFrame
-    portfolio_df = pd.DataFrame(portfolio_values, columns=["Date", "Value"])
-    portfolio_df.set_index("Date", inplace=True)
+            prev_sigs[sym] = sig
 
-    # Performance analysis
-    returns = calculate_returns(portfolio_df["Value"])
-    sharpe = calculate_sharpe_ratio(returns)
-    drawdowns, max_dd = calculate_drawdowns(portfolio_df["Value"])
+        # record portfolio value after all trades that day
+        total_val = port.value(today_prices)
+        port_values.append((date, total_val))
 
-    print(f"Sharpe Ratio: {sharpe:.2f}")
-    print(f"Max Drawdown: {max_dd:.2%}")
+    # 6) Build a DataFrame of values
+    df_vals = pd.DataFrame(port_values, columns=["Date","Value"]).set_index("Date")
 
-    # 1. Convert trade list to DataFrame
-    trade_dicts = [t.__dict__ for t in execution_handler.trades]
-    trade_df = pd.DataFrame(trade_dicts)
-    trade_df.set_index('timestamp', inplace=True)
+    # 7) Performance analytics
+    returns = calculate_returns(df_vals["Value"])
+    sharpe  = calculate_sharpe_ratio(returns)
+    drawdn, max_dd = calculate_drawdowns(df_vals["Value"])
+    var_hist = historical_var(returns)
+    es       = expected_shortfall(returns)
 
-    # 2. Save to CSV
-    trade_df.to_csv('reports/trade_log.csv')
+    print(f"Final portfolio value: ${df_vals['Value'].iloc[-1]:,.2f}")
+    print(f"Sharpe Ratio:          {sharpe:.2f}")
+    print(f"Max Drawdown:         {max_dd:.2%}")
+    print(f"Historical VaR (5%):  {var_hist:.2%}")
+    print(f"Expected Shortfall:   {es:.2%}")
 
-    print("Trade log saved to reports/trade_log.csv")
+    # 8) Plot
+    plot_equity_curve(df_vals["Value"], drawdn)
 
-    # Plot results
-    plot_equity_curve(portfolio_df["Value"], drawdowns)
-
-    # Get the last closing price as a Python float
-    last_price = data_with_signals["Close"].iloc[-1].item()
-
-    # Compute portfolio value on that last price
-    final_value = portfolio.value({"SPY": last_price})
-
-    # Now final_value is a numeric (float) and the formatter will work
-    print(f"Final portfolio value: ${final_value:,.2f}")
+    # 9) Export trade log if you have one
+    trades = [t.__dict__ for t in exec_h.trades]
+    pd.DataFrame(trades).to_csv("reports/trade_log.csv", index=False)
 
 if __name__ == "__main__":
     main()

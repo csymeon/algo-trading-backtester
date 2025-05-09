@@ -22,12 +22,13 @@ def calculate_drawdowns(portfolio_values):
 
 def plot_equity_curve(portfolio_values, drawdowns=None):
     fig, ax = plt.subplots(figsize=(10, 6))
-    portfolio_values.plot(ax=ax, label="Portfolio Value")
+    ax.plot(portfolio_values, label="Portfolio Value")
     if drawdowns is not None:
-        drawdowns.plot(ax=ax, label="Drawdown", secondary_y=True, color='red', alpha=0.3)
+        ax.plot(drawdowns, label="Drawdown", color='red', alpha=0.3)
+        ax.secondary_yaxis('right', functions=(lambda x: x, lambda x: str(x*100) + '%'))
     ax.set_title("Portfolio Value Over Time")
     ax.set_ylabel("Value")
     ax.legend()
     plt.grid(True)
-    plt.tight_layout()
+    # plt.tight_layout()
     plt.show()
