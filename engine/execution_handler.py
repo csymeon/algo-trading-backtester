@@ -13,14 +13,14 @@ class ExecutionHandler:
         self.slippage_pct = slippage_pct
         self.trades = []  # will store Trade objects
 
-    def execute_order(self, order_type, symbol, quantity, price, timestamp=None):
+    def execute_order(self, order_type, symbol, quantity, price, timestamp):
         # 1. Calculate slippage impact
         slippage = price * self.slippage_pct
         exec_price = price + slippage if order_type == "BUY" else price - slippage
 
         # 2. Build a Trade record
         trade = Trade(
-            timestamp=datetime.now(),
+            timestamp=timestamp,
             symbol=symbol,
             order_type=order_type,
             quantity=quantity,
