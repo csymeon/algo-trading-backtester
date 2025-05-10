@@ -16,7 +16,7 @@ def calculate_sharpe_ratio(returns, risk_free_rate=0.01):
 def calculate_drawdowns(portfolio_values):
     cumulative = portfolio_values
     peak = cumulative.cummax()
-    drawdown = (cumulative - peak) / peak
+    drawdown = ((cumulative - peak) / peak).cummin()
     max_drawdown = drawdown.min()
     return drawdown, max_drawdown
 
