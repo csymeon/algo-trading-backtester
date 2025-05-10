@@ -25,7 +25,7 @@ class MomentumStrategy:
         })
 
         # compute returns
-        ret = prices.pct_change(self.lookback).shift(1)
+        ret = prices.pct_change(self.lookback).dropna()
         signals = pd.DataFrame(0, index=prices.index, columns=prices.columns)
 
         # On each date, rank and assign +1, −1
