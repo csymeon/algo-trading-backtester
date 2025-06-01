@@ -45,7 +45,7 @@ def backtest_strategy(
         prev = sig
 
         # If no trade occurred, but you still want an end‐of‐day snapshot:
-        # port.snapshot(date, {symbol: price})
+        port.snapshot(date, {symbol: price})
 
     # Once loop ends, grab the full history DataFrame:
     hist_df = port.history()  
