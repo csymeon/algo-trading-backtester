@@ -1,6 +1,7 @@
 # utils/backtester.py
 
 import pandas as pd
+import numpy as np
 from engine.execution_handler import ExecutionHandler
 from engine.portfolio         import Portfolio
 
