@@ -14,6 +14,7 @@ class PairsTradingStrategy:
         self.lookback = lookback
         self.z_entry  = z_entry
         self.z_exit   = z_exit
+        self.symbols = [symbol_x, symbol_y]
 
     def fit(self, df_x: pd.Series, df_y: pd.Series):
         # test cointegration and estimate hedge ratio via OLS
