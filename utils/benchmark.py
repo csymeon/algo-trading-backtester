@@ -27,24 +27,30 @@ def backtest_strategy(
     else:
         sigs = signals.astype(int)
 
-    values = []
     prev = 0
 
     for date in prices.index:
         price = float(prices.loc[date])
         sig   = sigs.loc[date]
 
-        if sig == 1 and prev != 1:
-            exec_h.execute_order("BUY", symbol, qty_per_trade, price, timestamp=date)
-            port.buy(symbol, qty_per_trade, price, commission=commission)
+        if sig ==  1 and prev !=  1:
+            exec_h.execute_order("BUY", symbol, qty_per_trade, price)
+            # Note: we pass "date" to record immediately after the buy:
+            port.buy(symbol, qty_per_trade, price, commission=commission, timestamp=date)
+
         elif sig == -1 and prev != -1:
-            exec_h.execute_order("SELL", symbol, qty_per_trade, price, timestamp=date)
-            port.sell(symbol, qty_per_trade, price, commission=commission)
+            exec_h.execute_order("SELL", symbol, qty_per_trade, price)
+            port.sell(symbol, qty_per_trade, price, commission=commission, timestamp=date)
 
         prev = sig
-        values.append(port.value({symbol: price}))
 
-    return pd.Series(values, index=prices.index)
+        # If no trade occurred, but you still want an end‐of‐day snapshot:
+        # port.snapshot(date, {symbol: price})
+
+    # Once loop ends, grab the full history DataFrame:
+    hist_df = port.history()  
+
+    return hist_df
 
 def compare_strategies(
     prices: pd.Series,
