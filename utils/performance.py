@@ -4,8 +4,20 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def calculate_returns(portfolio_values):
-    returns = portfolio_values.pct_change().dropna()
+def calculate_returns(portfolio_values, type='simple'):
+    """
+    Calculate returns from portfolio values.
+    :param portfolio_values: Series or DataFrame of portfolio values over time.
+    :param type: 'simple' for simple returns, 'log' for log returns.
+    :return: Series or DataFrame of returns.
+    """
+    if type not in ['simple', 'log']:
+        raise NotImplementedError("type must be 'simple' or 'log'.")
+    elif type == 'log':
+        returns = np.log(portfolio_values / portfolio_values.shift(1)).dropna()
+    elif type == 'simple':
+        # Simple returns
+        returns = portfolio_values.pct_change().dropna()
     return returns
 
 def calculate_sharpe_ratio(returns, risk_free_rate=0.01):
