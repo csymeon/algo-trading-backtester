@@ -20,17 +20,59 @@ def calculate_returns(portfolio_values, type='simple'):
         returns = portfolio_values.pct_change().dropna()
     return returns
 
-def calculate_sharpe_ratio(returns, risk_free_rate=0.01):
-    excess_returns = returns - (risk_free_rate / 252)
-    sharpe = np.sqrt(252) * excess_returns.mean() / excess_returns.std()
-    return sharpe
+def compound(r):
+    """
+    returns the result of compounding the set of returns in r
+    """
+    return np.expm1(np.log1p(r).sum())
 
-def calculate_drawdowns(portfolio_values):
-    cumulative = portfolio_values
-    peak = cumulative.cummax()
-    drawdown = ((cumulative - peak) / peak).cummin()
-    max_drawdown = drawdown.min()
-    return drawdown, max_drawdown
+                         
+def annualize_rets(r, periods_per_year):
+    """
+    Annualizes a set of returns
+    We should infer the periods per year
+    but that is currently left as an exercise
+    to the reader :-)
+    """
+    compounded_growth = (1+r).prod()
+    n_periods = r.shape[0]
+    return compounded_growth**(periods_per_year/n_periods)-1
+
+
+def annualize_vol(r, periods_per_year):
+    """
+    Annualizes the vol of a set of returns
+    We should infer the periods per year
+    but that is currently left as an exercise
+    to the reader :-)
+    """
+    return r.std()*(periods_per_year**0.5)
+
+
+def sharpe_ratio(r, riskfree_rate, periods_per_year):
+    """
+    Computes the annualized sharpe ratio of a set of returns
+    """
+    # convert the annual riskfree rate to per period
+    rf_per_period = (1+riskfree_rate)**(1/periods_per_year)-1
+    excess_ret = r - rf_per_period
+    ann_ex_ret = annualize_rets(excess_ret, periods_per_year)
+    ann_vol = annualize_vol(r, periods_per_year)
+    return ann_ex_ret/ann_vol
+
+def drawdown(return_series: pd.Series):
+    """Takes a time series of asset returns.
+       returns a DataFrame with columns for
+       the wealth index, 
+       the previous peaks, and 
+       the percentage drawdown
+    """
+    wealth_index = 1000*(1+return_series).cumprod()
+    previous_peaks = wealth_index.cummax()
+    drawdowns = (wealth_index - previous_peaks)/previous_peaks
+    return pd.DataFrame({"Wealth": wealth_index, 
+                         "Previous Peak": previous_peaks, 
+                         "Drawdown": drawdowns})
 
 def plot_equity_curve(portfolio_values, drawdowns=None):
     fig, ax = plt.subplots(figsize=(10, 6))
