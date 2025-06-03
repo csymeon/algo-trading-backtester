@@ -49,7 +49,7 @@ def annualize_vol(r, periods_per_year):
     return r.std()*(periods_per_year**0.5)
 
 
-def sharpe_ratio(r, riskfree_rate, periods_per_year):
+def calculate_sharpe_ratio(r, riskfree_rate, periods_per_year):
     """
     Computes the annualized sharpe ratio of a set of returns
     """
@@ -60,7 +60,7 @@ def sharpe_ratio(r, riskfree_rate, periods_per_year):
     ann_vol = annualize_vol(r, periods_per_year)
     return ann_ex_ret/ann_vol
 
-def drawdown(return_series: pd.Series):
+def calculate_drawdown(return_series: pd.Series):
     """Takes a time series of asset returns.
        returns a DataFrame with columns for
        the wealth index, 
