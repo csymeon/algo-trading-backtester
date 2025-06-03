@@ -40,3 +40,13 @@ class ExecutionHandler:
         # print(f"{order_type} {quantity} {symbol} @ {exec_price:.2f} "
         #       f"(comm: {self.commission:.2f}, slip: {slippage:.2f})")
         return True
+    
+    def last_trade_price(self, symbol):
+        """
+        Get the last executed trade price for a given symbol.
+        Returns None if no trades were executed for that symbol.
+        """
+        for trade in reversed(self.trades):
+            if trade.symbol == symbol:
+                return trade.price
+        return None
