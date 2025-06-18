@@ -86,3 +86,28 @@ def plot_equity_curve(portfolio_values, drawdowns=None):
     plt.grid(True)
     # plt.tight_layout()
     plt.show()
+
+def skewness(r):
+    """
+    Alternative to scipy.stats.skew()
+    Computes the skewness of the supplied Series or DataFrame
+    Returns a float or a Series
+    """
+    demeaned_r = r - r.mean()
+    # use the population standard deviation, so set dof=0
+    sigma_r = r.std(ddof=0)
+    exp = (demeaned_r**3).mean()
+    return exp/sigma_r**3
+
+
+def kurtosis(r):
+    """
+    Alternative to scipy.stats.kurtosis()
+    Computes the kurtosis of the supplied Series or DataFrame
+    Returns a float or a Series
+    """
+    demeaned_r = r - r.mean()
+    # use the population standard deviation, so set dof=0
+    sigma_r = r.std(ddof=0)
+    exp = (demeaned_r**4).mean()
+    return exp/sigma_r**4
